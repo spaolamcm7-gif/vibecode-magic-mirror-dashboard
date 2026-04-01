@@ -14,20 +14,21 @@ type WeatherState =
       temp: number;
       feels: number;
       label: string;
-      symbol: string;
+      emoji: string;
     };
 
-function wmoLabel(code: number): { label: string; symbol: string } {
-  if (code === 0) return { label: "Clear", symbol: "○" };
-  if (code <= 3) return { label: "Cloudy", symbol: "◌" };
-  if (code <= 48) return { label: "Fog", symbol: "≋" };
-  if (code <= 57) return { label: "Drizzle", symbol: "·" };
-  if (code <= 67) return { label: "Rain", symbol: "/" };
-  if (code <= 77) return { label: "Snow", symbol: "*" };
-  if (code <= 82) return { label: "Rain showers", symbol: "//" };
-  if (code <= 86) return { label: "Snow showers", symbol: "**" };
-  if (code <= 99) return { label: "Storm", symbol: "⚡" };
-  return { label: "Weather", symbol: "—" };
+/** WMO weather code → short label + a clear emoji (not abstract Unicode shapes). */
+function wmoLabel(code: number): { label: string; emoji: string } {
+  if (code === 0) return { label: "Clear sky", emoji: "☀️" };
+  if (code <= 3) return { label: "Partly cloudy", emoji: "⛅" };
+  if (code <= 48) return { label: "Fog", emoji: "🌫️" };
+  if (code <= 57) return { label: "Drizzle", emoji: "🌦️" };
+  if (code <= 67) return { label: "Rain", emoji: "🌧️" };
+  if (code <= 77) return { label: "Snow", emoji: "❄️" };
+  if (code <= 82) return { label: "Rain showers", emoji: "🌧️" };
+  if (code <= 86) return { label: "Snow showers", emoji: "🌨️" };
+  if (code <= 99) return { label: "Thunderstorm", emoji: "⛈️" };
+  return { label: "Conditions", emoji: "🌡️" };
 }
 
 export function WeatherWidget() {
@@ -50,13 +51,13 @@ export function WeatherWidget() {
         if (cancelled) return;
         const cur = data.current;
         const code = cur.weather_code as number;
-        const { label, symbol } = wmoLabel(code);
+        const { label, emoji } = wmoLabel(code);
         setState({
           status: "ok",
           temp: Math.round(cur.temperature_2m),
           feels: Math.round(cur.apparent_temperature),
           label,
-          symbol,
+          emoji,
         });
       })
       .catch(() => {
@@ -79,7 +80,7 @@ export function WeatherWidget() {
         )}
         {state.status === "ok" && (
           <>
-            <div className="flex items-baseline gap-3">
+            <div className="flex items-center gap-3">
               <span
                 className="font-mono text-5xl font-light tabular-nums tracking-tight text-white"
                 aria-label={`Temperature ${state.temp} degrees Celsius`}
@@ -87,8 +88,8 @@ export function WeatherWidget() {
                 {state.temp}
                 <span className="text-2xl text-white/50">°C</span>
               </span>
-              <span className="text-3xl text-white/30" aria-hidden>
-                {state.symbol}
+              <span className="text-4xl leading-none" title={state.label} role="img" aria-hidden>
+                {state.emoji}
               </span>
             </div>
             <p className="mt-1 text-sm text-white/70">{state.label}</p>

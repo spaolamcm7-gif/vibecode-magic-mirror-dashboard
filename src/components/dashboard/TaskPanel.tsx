@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   createTask,
   deleteTask,
@@ -19,7 +20,17 @@ type Props = {
   initialTasks: Task[];
 };
 
+function isError(r: unknown): r is { error: string } {
+  return (
+    typeof r === "object" &&
+    r !== null &&
+    "error" in r &&
+    typeof (r as { error: unknown }).error === "string"
+  );
+}
+
 export function TaskPanel({ initialTasks }: Props) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
@@ -35,9 +46,12 @@ export function TaskPanel({ initialTasks }: Props) {
     return g;
   }, [initialTasks]);
 
-  function run(action: () => Promise<{ error?: string } | { ok?: boolean }>) {
+  function run(action: () => Promise<unknown>) {
     startTransition(() => {
-      void action();
+      void action().then((r) => {
+        if (isError(r)) return;
+        router.refresh();
+      });
     });
   }
 
@@ -150,37 +164,54 @@ function AddTaskRow({
   section: TaskSection;
   disabled: boolean;
 }) {
+  const router = useRouter();
   const [value, setValue] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function submit() {
     const t = value.trim();
     if (!t) return;
+    setError(null);
     startTransition(() => {
-      void createTask(t, section).then(() => setValue(""));
+      void createTask(t, section).then((r) => {
+        if (isError(r)) {
+          setError(r.error);
+          return;
+        }
+        setValue("");
+        router.refresh();
+      });
     });
   }
 
   return (
-    <div className="mt-3 flex gap-2">
-      <input
-        placeholder={`Add to ${section}…`}
-        className="min-w-0 flex-1 rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm text-white placeholder:text-white/25 focus:border-white/25 focus:outline-none"
-        value={value}
-        disabled={disabled || pending}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") submit();
-        }}
-      />
-      <button
-        type="button"
-        disabled={disabled || pending || !value.trim()}
-        onClick={submit}
-        className="shrink-0 rounded-md border border-white/15 px-3 py-2 text-xs text-white/80 hover:bg-white/[0.04] disabled:opacity-40"
-      >
-        Add
-      </button>
+    <div className="mt-3 flex flex-col gap-2">
+      <div className="flex gap-2">
+        <input
+          placeholder={`Add to ${section}…`}
+          className="min-w-0 flex-1 rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm text-white placeholder:text-white/25 focus:border-white/25 focus:outline-none"
+          value={value}
+          disabled={disabled || pending}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+        />
+        <button
+          type="button"
+          disabled={disabled || pending || !value.trim()}
+          onClick={submit}
+          className="shrink-0 rounded-md border border-white/15 px-3 py-2 text-xs text-white/80 hover:bg-white/[0.04] disabled:opacity-40"
+        >
+          Add
+        </button>
+      </div>
+      {error ? (
+        <p className="text-xs text-amber-200/90" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

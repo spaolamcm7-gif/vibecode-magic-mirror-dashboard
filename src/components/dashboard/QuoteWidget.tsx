@@ -11,10 +11,9 @@ type QuoteState =
   | { status: "ok"; text: string; author: string };
 
 async function fetchQuote(): Promise<{ text: string; author: string }> {
-  const res = await fetch("https://api.quotable.io/random");
+  const res = await fetch("/api/quote", { cache: "no-store" });
   if (!res.ok) throw new Error("Quote request failed");
-  const data = (await res.json()) as { content: string; author: string };
-  return { text: data.content, author: data.author };
+  return (await res.json()) as { text: string; author: string };
 }
 
 export function QuoteWidget() {
@@ -36,7 +35,10 @@ export function QuoteWidget() {
       })
       .catch(() => {
         if (mounted.current)
-          setState({ status: "error", message: "Could not load a quote." });
+          setState({
+            status: "error",
+            message: "Could not load a quote. Check your connection and try again.",
+          });
       });
   }, []);
 
